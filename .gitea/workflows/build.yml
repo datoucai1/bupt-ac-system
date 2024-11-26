@@ -1,0 +1,43 @@
+name: Build Docker Image
+on:
+    push:
+        branches:
+            - master
+
+jobs:
+    Build-Martina:
+        runs-on: archlinux
+        steps:
+            -   uses: https://git.rrricardo.top/actions/checkout@v4
+                name: Check out code
+                with:
+                    submodules: true
+                    token: ${{ secrets.GIT_TOKEN }}
+                    github-server-url: 'https://git.rrricardo.top'
+            -   name: Cache nuget packages
+                uses: https://git.rrricardo.top/actions/cache@v4
+                with:
+                    path: ~/.nuget/packages
+                    key: ${{ runner.os }}-nuget
+                    save-always: true
+            -   name: Get npm cache directory
+                id: npm-cache-dir
+                shell: bash
+                run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+            -   name: Use npm cache
+                uses: https://git.rrricardo.top/actions/cache@v4
+                id : npm-cache
+                with:
+                    path: ${{ steps.npm-cache-dir.outputs.dir }}
+                    key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+                    restore-keys: |
+                        ${{ runner.os }}-node-
+            -   name: Build Frontend
+                run: |
+                    cd Martina/martina-frontend
+                    npm i
+                    npm run build
+            -   name: Build docker image
+                run: |
+                    cd Martina
+                    dotnet publish -p:PublishProfile=DefaultContainer
